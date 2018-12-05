@@ -4,6 +4,7 @@
 #include <3ds.h>
 #include <sf2d.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "types.h"
 #include "util.h"
@@ -12,14 +13,14 @@
 #include "sound.h"
 #include "logic.h"
 
-//file location for built in levels
+//file locations for levels and scores
 const char* NAME_ROMFS_PROJECT = "romfs:" FILE_PROJECT;
 const char* NAME_SDMC_PROJECT = "sdmc:" DIR_3DS DIR_DATA DIR_HAXAGON FILE_PROJECT;
 const char* NAME_ROMFS_SCORE = "sdmc:" DIR_3DS DIR_DATA DIR_HAXAGON FILE_SCORE_ROMFS;
 const char* NAME_SDMC_SCORE = "sdmc:" DIR_3DS DIR_DATA DIR_HAXAGON FILE_SCORE_SDMC;
 
 int main() {
-	
+
 	//3ds init
 	sf2d_init();
 	sf2d_set_vblank_wait(1);
@@ -28,20 +29,20 @@ int main() {
 	sdmcInit();
 	ndspInit();
 	ndspSetOutputMode(NDSP_OUTPUT_STEREO);
-	
+
 	//pattern loading
 	LoadedState loaded = NOT_LOADED;
 	GlobalData data = EMPTY_GLOBAL_DATA;
 	FILE* fileData;
 	const char*  scorePath;
 	data.loaded = 0;
-	
+
 	//program init
 	srand(svcGetSystemTick());
-	
+
 	//audio loading
 	Track begin;
-	Track hexagon; 
+	Track hexagon;
 	Track over;
 	Track rotate;
 	Track mainMenu;
@@ -55,13 +56,16 @@ int main() {
 	audioLoad("romfs:/bgm/pamgaea.wav", &mainMenu, 5);
 	int channelBGM = 6; //Last channel + 1. Remember to update this!
 	int showGetBGM = 1; //Used to hide the get BGM info after a button press.
-	
+	int showLoadLevels = 0; //Used to show option to load levels if external levels exist.
+	if(access(NAME_SDMC_PROJECT, 0) != -1) showLoadLevels = 1; //Set true if accessible at startup.
+	//Note: will still panic if file is ever removed during runtime when it needs it (by design?)
+
 	//level selection and game over
 	int nlevel = 0;
 	int nLastLevel = -1;
 	Level level = EMPTY_LEVEL;
 	LiveLevel gameOver = EMPTY_LIVE_LEVEL;
-	
+
 	//Controller
 	GameState state = SWITCH_LOAD_LOCATION;
 	while(state != PROGRAM_QUIT) {
@@ -73,11 +77,11 @@ int main() {
 			default:
 			case NOT_LOADED:
 			case SDMC:;
-				fileData = fopen(NAME_ROMFS_PROJECT, "rb");
-				if(!fileData) panic("NO INTERNAL FILE!", "There was no internal file to load. "
-						"The game was likely compiled incorrectly.", DEF_DEBUG, (int)fileData);
-				scorePath = NAME_ROMFS_SCORE;
-				loaded = ROMFS;
+                fileData = fopen(NAME_ROMFS_PROJECT, "rb");
+                if(!fileData) panic("NO INTERNAL FILE!", "There was no internal file to load. "
+                        "The game was likely compiled incorrectly.", DEF_DEBUG, (int)fileData);
+                scorePath = NAME_ROMFS_SCORE;
+                loaded = ROMFS;
 				break;
 			case ROMFS:;
 				fileData = fopen(NAME_SDMC_PROJECT, "rb");
@@ -98,9 +102,9 @@ int main() {
 			audioStop(&bgm);
 			audioPlay(&hexagon, ONCE);
 			audioPlay(&mainMenu, LOOP);
-			state = doMainMenu(data, loaded, rotate, &nlevel, showGetBGM);
+			state = doMainMenu(data, loaded, rotate, &nlevel, showGetBGM, showLoadLevels);
 			level = data.levels[nlevel];
-
+			
 			//load audio
 			audioStop(&mainMenu);
 			if(state == PLAYING) {
@@ -125,6 +129,7 @@ int main() {
 
 			//replace and save high score if needed.
 			if(gameOver.score > level.highScore) {
+				level.highScore = gameOver.score;
 				data.levels[nlevel].highScore = gameOver.score;
 				putScores(scorePath, data);
 			}
@@ -132,10 +137,10 @@ int main() {
 		case PROGRAM_QUIT:;
 		}
 	}
-	
+
 	//level free
 	freeData(data);
-	
+
 	//audio free
 	audioFree(&begin);
 	audioFree(&hexagon);
@@ -144,12 +149,12 @@ int main() {
 	audioFree(&mainMenu);
 	audioFree(&levelUp);
 	audioFree(&bgm);
-	
+
 	//close GFX
 	sf2d_fini();
-	gfxExit();	
-	romfsExit();	
+	gfxExit();
+	romfsExit();
 	sdmcExit();
-	ndspExit();	
+	ndspExit();
 	return 0;
 }

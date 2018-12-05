@@ -1,5 +1,17 @@
 # The SD card
 
+### The default music for the game can be downloaded from the folder above!
+(that is `/sdmc/3ds/data/haxagon/`)!
+
+### Music format
+ * WAV fle
+ * unsigned 16 bit PCM
+ * must be mono
+ * all metadada must be removed from the file
+  * you can do this by pressing clear when exporting from audacity
+  
+### Other Information
+
 Music, save files, and extra add-on levels now exist in the SD card instead of the romfs. Your custom music will be loaded from this location instead.
 
 For example, a level with the custom music name "test.wav" will be loaded from sdmc:/3ds/data/haxagon/test.wav
